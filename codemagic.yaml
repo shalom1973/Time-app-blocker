@@ -5,12 +5,9 @@ workflows:
     environment:
       vars:
         PACKAGE_NAME: "com.example.appblocker"
-    # מחקנו את כל בלוק החתימה מכאן - android_signing
     scripts:
       - name: Build debug APK
         script: |
-          # שינינו את הפקודה ל-assembleDebug
-          ./gradlew assembleDebug
+          cd android && ./gradlew assembleDebug
     artifacts:
-      # שינינו את שם הקובץ ל-app-debug.apk
       - build/app/outputs/flutter-apk/app-debug.apk

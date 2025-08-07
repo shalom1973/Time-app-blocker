@@ -1,93 +1,107 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:device_apps/device_apps.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'App Blocker',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: LockScreen(),
+      theme: ThemeData(
+        primarySwatch: Colors.indigo,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
+      // מתחילים ישירות במסך הבית החדש
+      home: const HomePage(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class LockScreen extends StatefulWidget {
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
-  _LockScreenState createState() => _LockScreenState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _LockScreenState extends State<LockScreen> {
-  final TextEditingController _pinController = TextEditingController();
-  final String _correctPin = "1234";
+class _HomePageState extends State<HomePage> {
+  // משתמשים ב-FutureBuilder כדי לטפל בטעינה הא-סינכרונית של רשימת האפליקציות
+  late Future<List<Application>> _appsFuture;
 
-  void _checkPin() {
-    if (_pinController.text == _correctPin) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("קוד שגוי")));
-    }
+  @override
+  void initState() {
+    super.initState();
+    _appsFuture = _getInstalledApps();
+  }
+  
+  // פונקציה שמחזירה את רשימת האפליקציות מהמכשיר
+  Future<List<Application>> _getInstalledApps() async {
+    // מבקשים את רשימת האפליקציות, לא כולל אפליקציות מערכת
+    return await DeviceApps.getInstalledApplications(
+      includeAppIcons: true,
+      includeSystemApps: false,
+      onlyAppsWithLaunchIntent: true,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text("הזן קוד נעילה", style: TextStyle(fontSize: 20)),
-              TextField(
-                controller: _pinController,
-                obscureText: true,
-                keyboardType: TextInputType.number,
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(onPressed: _checkPin, child: Text("המשך")),
-            ],
-          ),
-        ),
+      appBar: AppBar(
+        title: const Text("בחר אפליקציות לחסימה"),
       ),
-    );
-  }
-}
+      body: FutureBuilder<List<Application>>(
+        future: _appsFuture,
+        builder: (context, snapshot) {
+          // בזמן שהרשימה נטענת, נציג אנימציית טעינה
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-class HomePage extends StatelessWidget {
-  void _exitApp() {
-    SystemNavigator.pop();
-  }
+          // אם יש שגיאה בטעינה
+          if (snapshot.hasError) {
+            return Center(child: Text("שגיאה בטעינת אפליקציות: ${snapshot.error}"));
+          }
 
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        return true;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text("אפליקציה לחסימת יישומים"),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
+          // אם אין נתונים (נדיר, אבל אפשרי)
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text("לא נמצאו אפליקציות מותקנות."));
+          }
+
+          // אם הטעינה הצליחה, נציג את הרשימה
+          final apps = snapshot.data!;
+          return ListView.builder(
+            itemCount: apps.length,
+            itemBuilder: (context, index) {
+              final app = apps[index];
+              // ApplicationWithIcon הוא סוג שיש לו גם תמונה
+              final icon = app is ApplicationWithIcon ? app.icon : null;
+
+              return ListTile(
+                // מציגים את האייקון של האפליקציה
+                leading: icon != null
+                    ? Image.memory(icon, width: 40, height: 40)
+                    : const Icon(Icons.apps, size: 40),
+                // מציגים את שם האפליקציה
+                title: Text(app.appName),
+                // מציגים את שם החבילה (למשל com.whatsapp)
+                subtitle: Text(app.packageName),
+                onTap: () {
+                  // כאן תוכל להוסיף לוגיקה למה שקורה כשלוחצים על אפליקציה
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('בחרת ב: ${app.appName}')),
+                  );
+                },
+              );
             },
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.exit_to_app),
-              onPressed: _exitApp,
-            ),
-          ],
-        ),
-        body: Center(
-          child: Text("כאן תוצג הרשימה של האפליקציות המותרות"),
-        ),
+          );
+        },
       ),
     );
   }
