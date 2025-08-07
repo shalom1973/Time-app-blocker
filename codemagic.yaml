@@ -8,6 +8,8 @@ workflows:
     scripts:
       - name: Build debug APK
         script: |
-          cd android && ./gradlew assembleDebug
+          # נכנסים לתיקיית הפרויקט הראשית, ואז לתיקיית אנדרואיד
+          cd Time-app-blocker && cd android && ./gradlew assembleDebug
     artifacts:
-      - build/app/outputs/flutter-apk/app-debug.apk
+      # עדכנו גם את הנתיב לקובץ התוצאה
+      - Time-app-blocker/build/app/outputs/flutter-apk/app-debug.apk
