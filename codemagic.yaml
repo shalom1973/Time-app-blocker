@@ -8,7 +8,7 @@ workflows:
       android_signing:
         - keystore_reference
     scripts:
-      - name: Build APK
+      - name: Build debug  APK
         script: |
           ./gradlew assembleRelease
     artifacts:
